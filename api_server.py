@@ -8,14 +8,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
-# Import the generate function from app_acc_core.py
-from app_acc_core import generate
+# Import the generate function from app.py
+from app_acc import generate
 
 
 def save_upload_file(upload_file: UploadFile, destination: str) -> str:
     with open(destination, "wb") as buffer:
         shutil.copyfileobj(upload_file.file, buffer)
     return destination
+
+
+def find_mp4_files(directory):
+    """Recursively find all .mp4 files in the directory."""
+    mp4_files = []
+    for root, _, files in os.walk(directory):
+        for file in files:
+            if file.endswith(".mp4"):
+                # Get the relative path from the base directory
+                rel_path = os.path.relpath(os.path.join(root, file), directory)
+                mp4_files.append(rel_path)
+    return mp4_files
 
 
 app = FastAPI()
@@ -26,7 +38,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
+
+# Mount only the output directory
+app.mount("/output", StaticFiles(directory="output"), name="output")
 
 
 @app.post("/generate")
@@ -46,11 +60,17 @@ async def generate_api(
     quantization_input: bool = Form(False),
     seed: int = Form(-1),
 ):
-    image_path = f"temp/{datetime.now().strftime('%Y%m%d_%H%M%S')}_image.png"
-    audio_path = f"temp/{datetime.now().strftime('%Y%m%d_%H%M%S')}_audio.wav"
+    # Create temp directory if it doesn't exist
     os.makedirs("temp", exist_ok=True)
+
+    # Save uploaded files with timestamps
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    image_path = f"temp/{timestamp}_image.png"
+    audio_path = f"temp/{timestamp}_audio.wav"
+
     save_upload_file(image_input, image_path)
     save_upload_file(audio_input, audio_path)
+
     try:
         video_output, _ = generate(
             image_path,
@@ -68,6 +88,7 @@ async def generate_api(
             quantization_input,
             seed,
         )
+
         return FileResponse(
             video_output,
             media_type="video/mp4",
@@ -75,13 +96,34 @@ async def generate_api(
         )
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        # Clean up temp files
+        if os.path.exists(image_path):
+            os.remove(image_path)
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
 
 
 @app.get("/outputs")
 async def list_outputs_api():
-    files = sorted(glob.glob("outputs/*.mp4"), reverse=True)
-    return {"files": [os.path.basename(f) for f in files]}
+    """List all generated videos from the output directory."""
+    # Get files from output directory
+    files = find_mp4_files("output")
+
+    # Sort files by modification time (newest first)
+    files = sorted(
+        files, key=lambda f: os.path.getmtime(os.path.join("output", f)), reverse=True
+    )
+
+    # Convert to proper paths for frontend
+    relative_files = [f"output/{f}" for f in files]
+
+    return {"files": relative_files}
 
 
 if __name__ == "__main__":
+    # Create necessary directories
+    os.makedirs("output", exist_ok=True)
+    os.makedirs("temp", exist_ok=True)
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

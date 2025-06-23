@@ -363,7 +363,8 @@
 
           data.files.forEach((f) => {
             const li = document.createElement("li");
-            li.innerHTML = `<a href="${API_BASE}/outputs/${f}" target="_blank">${f}</a>`;
+            const filename = f.split("/").pop(); // Get just the filename for display
+            li.innerHTML = `<a href="${API_BASE}/${f}" target="_blank">${filename}</a>`;
             list.appendChild(li);
           });
         } catch (err) {
