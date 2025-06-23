@@ -219,6 +219,28 @@
         background: #1557b0;
         text-decoration: none;
       }
+
+      .output-list li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 0;
+      }
+
+      .output-list .file-link {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .output-list .file-type {
+        font-size: 0.9em;
+        color: #666;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #e9ecef;
+      }
     </style>
   </head>
   <body>
@@ -504,9 +526,16 @@
           data.files.forEach((f) => {
             const li = document.createElement("li");
             const filename = f.split("/").pop();
+            const isVideo = filename.toLowerCase().endsWith(".mp4");
+
             li.innerHTML = `
-              <a href="${API_BASE}/${f}" target="_blank">${filename}</a>
-              <a href="${API_BASE}/${f}" download="${filename}" class="download-btn">Download</a>
+              <a href="${API_BASE}/${f}" target="_blank" class="file-link">${filename}</a>
+              <span class="file-type">${isVideo ? "Video" : "File"}</span>
+              ${
+                isVideo
+                  ? `<a href="${API_BASE}/${f}" download="${filename}" class="download-btn">Download</a>`
+                  : ""
+              }
             `;
             list.appendChild(li);
           });
