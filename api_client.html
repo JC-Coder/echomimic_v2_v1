@@ -55,7 +55,8 @@
       }
       input[type="file"],
       input[type="text"],
-      input[type="number"] {
+      input[type="number"],
+      select {
         width: 100%;
         padding: 8px;
         border: 1px solid #ddd;
@@ -171,6 +172,53 @@
         color: #1a73e8;
         font-weight: 500;
       }
+
+      .audio-recorder {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 1em;
+      }
+
+      .audio-controls {
+        display: flex;
+        gap: 10px;
+      }
+
+      .record-button {
+        background: #d32f2f;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .record-button.recording {
+        background: #388e3c;
+      }
+
+      .audio-preview {
+        width: 100%;
+        margin-top: 10px;
+      }
+
+      .download-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #1a73e8;
+        color: white;
+        text-decoration: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        margin-top: 10px;
+      }
+
+      .download-btn:hover {
+        background: #1557b0;
+        text-decoration: none;
+      }
     </style>
   </head>
   <body>
@@ -242,16 +290,29 @@
             <label>Reference Image (PNG):</label>
             <input type="file" name="image_input" accept="image/png" required />
 
-            <label>Audio File (WAV):</label>
-            <input type="file" name="audio_input" accept="audio/wav" required />
+            <label>Audio Input:</label>
+            <div class="audio-input-container">
+              <div class="audio-recorder">
+                <div class="audio-controls">
+                  <button
+                    type="button"
+                    class="record-button"
+                    onclick="toggleRecording()"
+                  >
+                    Start Recording
+                  </button>
+                  <span id="recordingStatus"></span>
+                </div>
+                <audio id="audioPreview" class="audio-preview" controls></audio>
+              </div>
+              <p>Or upload an audio file:</p>
+              <input type="file" name="audio_input" accept="audio/wav" />
+            </div>
 
             <label>Pose Directory:</label>
-            <input
-              type="text"
-              name="pose_input"
-              value="assets/halfbody_demo/pose/fight"
-              placeholder="Server path to pose directory"
-            />
+            <select name="pose_input" required>
+              <option value="">Select a pose directory</option>
+            </select>
           </div>
 
           <div class="form-group">
@@ -318,6 +379,82 @@
 
     <script>
       const API_BASE = "http://13.203.96.180:8000"; // Update this to your server address
+      let mediaRecorder;
+      let audioChunks = [];
+      let isRecording = false;
+
+      // Initialize pose directory dropdown
+      const poseDirs = [
+        "01",
+        "02",
+        "03",
+        "04",
+        "fight",
+        "good",
+        "salute",
+        "ultraman",
+      ];
+      const poseSelect = document.querySelector('select[name="pose_input"]');
+      poseDirs.forEach((dir) => {
+        const option = document.createElement("option");
+        option.value = `assets/halfbody_demo/pose/${dir}`;
+        option.textContent = dir;
+        poseSelect.appendChild(option);
+      });
+
+      // Audio Recording Functions
+      async function toggleRecording() {
+        const recordButton = document.querySelector(".record-button");
+        const statusSpan = document.getElementById("recordingStatus");
+        const audioPreview = document.getElementById("audioPreview");
+
+        if (!isRecording) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+            });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+              audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+              const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+              const audioUrl = URL.createObjectURL(audioBlob);
+              audioPreview.src = audioUrl;
+
+              // Create a File object from the recorded audio
+              const audioFile = new File([audioBlob], "recorded_audio.wav", {
+                type: "audio/wav",
+              });
+              const audioInput = document.querySelector(
+                'input[name="audio_input"]'
+              );
+              const dataTransfer = new DataTransfer();
+              dataTransfer.items.add(audioFile);
+              audioInput.files = dataTransfer.files;
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            recordButton.textContent = "Stop Recording";
+            recordButton.classList.add("recording");
+            statusSpan.textContent = "Recording...";
+          } catch (err) {
+            console.error("Error accessing microphone:", err);
+            statusSpan.textContent = "Error: Could not access microphone";
+          }
+        } else {
+          mediaRecorder.stop();
+          mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+          isRecording = false;
+          recordButton.textContent = "Start Recording";
+          recordButton.classList.remove("recording");
+          statusSpan.textContent = "Recording stopped";
+        }
+      }
 
       document.getElementById("genForm").onsubmit = async function (e) {
         e.preventDefault();
@@ -345,6 +482,9 @@
           resultDiv.innerHTML = `
             <h3>Generated Animation</h3>
             <video src="${url}" controls></video>
+            <a href="${url}" download="generated_animation.mp4" class="download-btn">
+              Download Video
+            </a>
           `;
           listFiles();
         } catch (err) {
@@ -363,8 +503,11 @@
 
           data.files.forEach((f) => {
             const li = document.createElement("li");
-            const filename = f.split("/").pop(); // Get just the filename for display
-            li.innerHTML = `<a href="${API_BASE}/${f}" target="_blank">${filename}</a>`;
+            const filename = f.split("/").pop();
+            li.innerHTML = `
+              <a href="${API_BASE}/${f}" target="_blank">${filename}</a>
+              <a href="${API_BASE}/${f}" download="${filename}" class="download-btn">Download</a>
+            `;
             list.appendChild(li);
           });
         } catch (err) {
