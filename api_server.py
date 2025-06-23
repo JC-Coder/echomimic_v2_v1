@@ -8,8 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
-# Import the generate function from app.py
-from app_acc import generate
+# Import the generate function from app_acc_core.py
+from app_acc_core import generate
 
 
 def save_upload_file(upload_file: UploadFile, destination: str) -> str:
