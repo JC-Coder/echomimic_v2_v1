@@ -6,8 +6,23 @@ import asyncio
 import aiohttp
 import requests
 from datetime import datetime
-from typing import Dict, Optional, List, Union
-from fastapi import FastAPI, File, UploadFile, Form, BackgroundTasks, HTTPException
+from typing import Dict, Optional, List, Unio        video_output, _ = generate(
+            image_path,
+            audio_path,
+            pose_path,  # Use the corrected pose path
+            width,
+            height,
+            length,
+            steps,
+            sample_rate,
+            cfg,
+            fps,
+            context_frames,
+            context_overlap,
+            quantization_input,
+            seed,
+            progress_callback=progress_callback
+        )port FastAPI, File, UploadFile, Form, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -145,6 +160,20 @@ def run_generation(
     try:
         # Create the generated_videos directory if it doesn't exist
         os.makedirs("generated_videos", exist_ok=True)
+        
+        # Ensure pose_input has the correct path
+        # Check if pose_input is one of the predefined pose names
+        if pose_input in ["fight", "good", "ultraman", "salute"]:
+            pose_path = f"assets/halfbody_demo/pose/{pose_input}"
+        elif pose_input in ["01", "02", "03", "04"]:
+            pose_path = f"assets/halfbody_demo/pose/{pose_input}"
+        else:
+            # If it's already a path, use it as is
+            pose_path = pose_input
+            
+        # Verify that the pose path exists
+        if not os.path.exists(pose_path):
+            raise FileNotFoundError(f"Pose path not found: {pose_path}")
 
         # Run the generation
         def progress_callback(progress):
@@ -156,7 +185,7 @@ def run_generation(
         video_output, _ = generate(
             image_path,
             audio_path,
-            pose_input,
+            pose_path,  # Use the corrected pose path instead of pose_input
             width,
             height,
             length,
