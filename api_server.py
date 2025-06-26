@@ -525,12 +525,19 @@ async def get_video(video_id: str):
     )
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Create necessary directories on startup."""
+
+# Use FastAPI lifespan event handler for startup tasks
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app):
+    # Create necessary directories on startup
     os.makedirs("output", exist_ok=True)
     os.makedirs("temp", exist_ok=True)
     os.makedirs("generated_videos", exist_ok=True)
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/debug/list_directory")
