@@ -9,3 +9,22 @@ update the api server and api client
 client:
 1. update the client to support upload of image / audio (include support for url )
 2. Update client to support progress updates from the server and also multi generations
+
+
+
+// Note: 
+
+// start server with pm2 
+pm2 start ecosystem.config.js 
+
+// save the server 
+pm2 save
+
+// start server on boot 
+pm2 startup
+
+// save the server 
+pm2 save --force
+
+// delete all server 
+pm2 delete all
