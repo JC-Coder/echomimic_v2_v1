@@ -7,11 +7,6 @@ stop_servers() {
         kill $(cat http_server.pid)
         rm http_server.pid
     fi
-    if [ -f "api_server.pid" ]; then
-        echo "Stopping API server..."
-        kill $(cat api_server.pid)
-        rm api_server.pid
-    fi
 }
 
 # Function to kill processes on specific ports
@@ -43,17 +38,14 @@ stop_servers
 kill_port_processes
 
 # Start HTTP server in background and save PID
-nohup python3 -m http.server 8005 > http_server.log 2>&1 &
+python3 -m http.server 8005 &
 echo $! > http_server.pid
-
-# Start API server in background and save PID
-cd server
-nohup python3.10 api_server.py > ../api_server.log 2>&1 &
-echo $! > ../api_server.pid
-cd ..
 
 echo "Servers started!"
 echo "HTTP server running on http://localhost:8005"
 echo "API server running on http://localhost:8000"
 echo "Access the interface at: http://localhost:8005/api_client.html"
-echo "To stop servers, run: kill \$(cat http_server.pid) \$(cat api_server.pid)"
+echo "Press Ctrl+C to stop servers"
+
+# Start API server (this will run in foreground)
+cd server && python3.10 api_server.py 
