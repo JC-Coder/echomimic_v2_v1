@@ -16,6 +16,32 @@ from pydantic import BaseModel, HttpUrl
 import threading
 import time
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app):
+    # Create necessary directories on startup
+    os.makedirs("output", exist_ok=True)
+    os.makedirs("temp", exist_ok=True)
+    os.makedirs("generated_videos", exist_ok=True)
+    yield
+
+app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# Mount static directories
+app.mount("/output", StaticFiles(directory="output"), name="output")
+app.mount(
+    "/generated_videos",
+    StaticFiles(directory="generated_videos"),
+    name="generated_videos",
+)
+
 # Import the generate function from app_acc_core.py
 from app_acc_core import generate
 
@@ -217,26 +243,7 @@ def run_generation(
         cleanup_temp_files([image_path, audio_path])
 
 
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# Ensure static directories exist before mounting
-os.makedirs("output", exist_ok=True)
-os.makedirs("generated_videos", exist_ok=True)
-
-# Mount static directories
-app.mount("/output", StaticFiles(directory="output"), name="output")
-app.mount(
-    "/generated_videos",
-    StaticFiles(directory="generated_videos"),
-    name="generated_videos",
-)
 
 
 @app.post("/generate")
@@ -526,8 +533,8 @@ async def get_video(video_id: str):
 
 
 # Use FastAPI lifespan event handler for startup tasks
-from contextlib import asynccontextmanager
 
+from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app):
@@ -537,8 +544,21 @@ async def lifespan(app):
     os.makedirs("generated_videos", exist_ok=True)
     yield
 
-
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# Mount static directories
+app.mount("/output", StaticFiles(directory="output"), name="output")
+app.mount(
+    "/generated_videos",
+    StaticFiles(directory="generated_videos"),
+    name="generated_videos",
+)
 
 
 @app.get("/debug/list_directory")
