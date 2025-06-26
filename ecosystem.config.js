@@ -11,9 +11,10 @@ module.exports = {
     },
     {
       name: "http-server",
-      script: "-m",
+      script: "http.server",
       interpreter: "python3",
-      args: "http.server 8005",
+      interpreter_args: "-m",
+      args: "8005",
       watch: false,
     },
   ],
