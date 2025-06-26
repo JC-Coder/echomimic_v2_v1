@@ -18,6 +18,7 @@ import time
 
 from contextlib import asynccontextmanager
 
+
 @asynccontextmanager
 async def lifespan(app):
     # Create necessary directories on startup
@@ -25,6 +26,7 @@ async def lifespan(app):
     os.makedirs("temp", exist_ok=True)
     os.makedirs("generated_videos", exist_ok=True)
     yield
+
 
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
@@ -241,9 +243,6 @@ def run_generation(
 
         # Clean up temp files even if generation fails
         cleanup_temp_files([image_path, audio_path])
-
-
-
 
 
 @app.post("/generate")
@@ -530,35 +529,6 @@ async def get_video(video_id: str):
         media_type="video/mp4",
         filename=os.path.basename(video_path),
     )
-
-
-# Use FastAPI lifespan event handler for startup tasks
-
-from contextlib import asynccontextmanager
-
-@asynccontextmanager
-async def lifespan(app):
-    # Create necessary directories on startup
-    os.makedirs("output", exist_ok=True)
-    os.makedirs("temp", exist_ok=True)
-    os.makedirs("generated_videos", exist_ok=True)
-    yield
-
-app = FastAPI(lifespan=lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-# Mount static directories
-app.mount("/output", StaticFiles(directory="output"), name="output")
-app.mount(
-    "/generated_videos",
-    StaticFiles(directory="generated_videos"),
-    name="generated_videos",
-)
 
 
 @app.get("/debug/list_directory")
