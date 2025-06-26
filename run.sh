@@ -48,4 +48,4 @@ echo "Access the interface at: http://localhost:8005/api_client.html"
 echo "Press Ctrl+C to stop servers"
 
 # Start API server (this will run in foreground)
-cd server && python3.10 api_server.py 
+python3.10 api_server.py 
