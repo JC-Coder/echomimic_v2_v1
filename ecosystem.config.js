@@ -9,12 +9,11 @@ module.exports = {
         PORT: 8000,
       },
     },
+    // Run Python HTTP server as a module, matching run.sh logic
     {
       name: "http-server",
-      script: "http.server",
-      interpreter: "python3",
-      interpreter_args: "-m",
-      args: "8005",
+      script: "python3",
+      args: "-m http.server 8005",
       watch: false,
     },
   ],
