@@ -198,6 +198,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Ensure static directories exist before mounting
+os.makedirs("output", exist_ok=True)
+os.makedirs("generated_videos", exist_ok=True)
+
 # Mount static directories
 app.mount("/output", StaticFiles(directory="output"), name="output")
 app.mount(
