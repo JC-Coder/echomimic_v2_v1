@@ -1,0 +1,11 @@
+update the api server and api client 
+
+1. server should be able to handle url upload for files e.g audio , image etc. 
+2. implement cleanup for temp images / audio after generation. 
+3. support streaming e.g sending update about progress and also it should be able to run in background so multiple generation can work . 
+4. all generated videos should go to /generated_videos on server 
+5. when showing users output then get from the /generated_videos
+
+client:
+1. update the client to support upload of image / audio (include support for url )
+2. Update client to support progress updates from the server and also multi generations

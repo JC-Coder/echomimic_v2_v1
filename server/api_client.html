@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoMimic V2 - Video Generation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .glassmorphism {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .progress-bar {
+        transition: width 0.3s ease-in-out;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+      .animate-pulse-slow {
+        animation: pulse 2s infinite;
+      }
+    </style>
+  </head>
+  <body
+    class="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 text-white"
+  >
+    <div class="container mx-auto px-4 py-8">
+      <!-- Header -->
+      <div class="text-center mb-12">
+        <h1
+          class="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600"
+        >
+          EchoMimic V2
+        </h1>
+        <p class="text-gray-300">Generate amazing videos with AI</p>
+      </div>
+
+      <!-- Main Content -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Input Form -->
+        <div class="glassmorphism rounded-xl p-6 space-y-6">
+          <h2 class="text-2xl font-semibold mb-6">Generate Video</h2>
+
+          <!-- Input Method Selector -->
+          <div class="flex space-x-4 mb-6">
+            <button
+              id="fileUploadBtn"
+              class="flex-1 py-2 px-4 rounded-lg bg-purple-600 hover:bg-purple-700 transition-colors active"
+            >
+              <i class="fas fa-upload mr-2"></i>File Upload
+            </button>
+            <button
+              id="urlInputBtn"
+              class="flex-1 py-2 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
+            >
+              <i class="fas fa-link mr-2"></i>URL Input
+            </button>
+          </div>
+
+          <!-- Form -->
+          <form id="generationForm" class="space-y-4">
+            <!-- File Upload Section -->
+            <div id="fileUploadSection">
+              <div class="space-y-4">
+                <div
+                  class="relative border-2 border-dashed border-gray-400 rounded-lg p-6 text-center"
+                >
+                  <input
+                    type="file"
+                    id="imageFile"
+                    accept="image/*"
+                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <i class="fas fa-image text-3xl mb-2"></i>
+                  <p>Drop image or click to upload</p>
+                  <p id="imageFileName" class="text-sm text-gray-400 mt-2"></p>
+                </div>
+
+                <div
+                  class="relative border-2 border-dashed border-gray-400 rounded-lg p-6 text-center"
+                >
+                  <input
+                    type="file"
+                    id="audioFile"
+                    accept="audio/*"
+                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <i class="fas fa-music text-3xl mb-2"></i>
+                  <p>Drop audio or click to upload</p>
+                  <p id="audioFileName" class="text-sm text-gray-400 mt-2"></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- URL Input Section -->
+            <div id="urlInputSection" class="hidden space-y-4">
+              <div class="space-y-2">
+                <label class="block text-sm font-medium">Image URL</label>
+                <input
+                  type="url"
+                  id="imageUrl"
+                  class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="block text-sm font-medium">Audio URL</label>
+                <input
+                  type="url"
+                  id="audioUrl"
+                  class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+            </div>
+
+            <!-- Common Parameters -->
+            <div class="space-y-4">
+              <div class="space-y-2">
+                <label class="block text-sm font-medium">Pose Input</label>
+                <select
+                  id="poseInput"
+                  class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-purple-500"
+                >
+                  <option value="01">Pose 01</option>
+                  <option value="02">Pose 02</option>
+                  <option value="03">Pose 03</option>
+                  <option value="04">Pose 04</option>
+                  <option value="fight">Fight</option>
+                  <option value="good">Good</option>
+                  <option value="salute">Salute</option>
+                  <option value="ultraman">Ultraman</option>
+                </select>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                  <label class="block text-sm font-medium">Width</label>
+                  <input
+                    type="number"
+                    id="width"
+                    value="768"
+                    class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div class="space-y-2">
+                  <label class="block text-sm font-medium">Height</label>
+                  <input
+                    type="number"
+                    id="height"
+                    value="768"
+                    class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                  <label class="block text-sm font-medium">Length</label>
+                  <input
+                    type="number"
+                    id="length"
+                    value="120"
+                    class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div class="space-y-2">
+                  <label class="block text-sm font-medium">Steps</label>
+                  <input
+                    type="number"
+                    id="steps"
+                    value="30"
+                    class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                class="w-full py-3 px-6 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition-colors"
+              >
+                <i class="fas fa-magic mr-2"></i>Generate Video
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Progress and Preview -->
+        <div class="space-y-6">
+          <!-- Current Generation Progress -->
+          <div id="progressSection" class="hidden glassmorphism rounded-xl p-6">
+            <h3 class="text-xl font-semibold mb-4">Generation Progress</h3>
+            <div class="space-y-4">
+              <div class="w-full bg-gray-700 rounded-full h-4">
+                <div
+                  id="progressBar"
+                  class="progress-bar bg-gradient-to-r from-purple-600 to-pink-600 h-4 rounded-full"
+                  style="width: 0%"
+                ></div>
+              </div>
+              <p id="progressStatus" class="text-center text-gray-300">
+                Initializing...
+              </p>
+            </div>
+          </div>
+
+          <!-- Generated Videos Gallery -->
+          <div class="glassmorphism rounded-xl p-6">
+            <h3 class="text-xl font-semibold mb-4">Generated Videos</h3>
+            <div
+              id="videoGallery"
+              class="grid grid-cols-1 sm:grid-cols-2 gap-4"
+            >
+              <!-- Videos will be dynamically added here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Samples Section -->
+      <div class="mt-12">
+        <div class="glassmorphism rounded-xl p-6">
+          <h2 class="text-2xl font-semibold mb-6">Sample Generations</h2>
+          <p class="text-gray-300 mb-6">
+            Click on any sample to instantly try it out
+          </p>
+
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          >
+            <!-- Sample Cards -->
+            <div
+              class="sample-card group cursor-pointer bg-gray-800 rounded-lg overflow-hidden transition-transform transform hover:scale-105"
+              onclick="loadExample(0)"
+            >
+              <div class="relative h-48">
+                <img
+                  src="/EMTD_dataset/ref_imgs_by_FLUX/man/0003.png"
+                  alt="Fighting Scene"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"
+                ></div>
+                <div class="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 class="text-lg font-semibold text-white">
+                    Fighting Scene
+                  </h3>
+                  <p class="text-sm text-gray-300">Chinese Audio</p>
+                </div>
+              </div>
+              <div class="p-4 bg-gray-900 bg-opacity-50">
+                <div class="flex items-center text-sm text-gray-300">
+                  <i class="fas fa-music mr-2"></i>
+                  <span>fighting.wav</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-300 mt-2">
+                  <i class="fas fa-folder mr-2"></i>
+                  <span>pose/fight</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sample-card group cursor-pointer bg-gray-800 rounded-lg overflow-hidden transition-transform transform hover:scale-105"
+              onclick="loadExample(1)"
+            >
+              <div class="relative h-48">
+                <img
+                  src="/EMTD_dataset/ref_imgs_by_FLUX/woman/0033.png"
+                  alt="Good Scene"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"
+                ></div>
+                <div class="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 class="text-lg font-semibold text-white">Good Scene</h3>
+                  <p class="text-sm text-gray-300">Chinese Audio</p>
+                </div>
+              </div>
+              <div class="p-4 bg-gray-900 bg-opacity-50">
+                <div class="flex items-center text-sm text-gray-300">
+                  <i class="fas fa-music mr-2"></i>
+                  <span>good.wav</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-300 mt-2">
+                  <i class="fas fa-folder mr-2"></i>
+                  <span>pose/good</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sample-card group cursor-pointer bg-gray-800 rounded-lg overflow-hidden transition-transform transform hover:scale-105"
+              onclick="loadExample(2)"
+            >
+              <div class="relative h-48">
+                <img
+                  src="/EMTD_dataset/ref_imgs_by_FLUX/man/0010.png"
+                  alt="News Scene"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"
+                ></div>
+                <div class="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 class="text-lg font-semibold text-white">News Scene</h3>
+                  <p class="text-sm text-gray-300">Chinese Audio</p>
+                </div>
+              </div>
+              <div class="p-4 bg-gray-900 bg-opacity-50">
+                <div class="flex items-center text-sm text-gray-300">
+                  <i class="fas fa-music mr-2"></i>
+                  <span>news.wav</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-300 mt-2">
+                  <i class="fas fa-folder mr-2"></i>
+                  <span>pose/01</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sample-card group cursor-pointer bg-gray-800 rounded-lg overflow-hidden transition-transform transform hover:scale-105"
+              onclick="loadExample(3)"
+            >
+              <div class="relative h-48">
+                <img
+                  src="/EMTD_dataset/ref_imgs_by_FLUX/man/1168.png"
+                  alt="No Smoking Scene"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"
+                ></div>
+                <div class="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 class="text-lg font-semibold text-white">
+                    No Smoking Scene
+                  </h3>
+                  <p class="text-sm text-gray-300">Chinese Audio</p>
+                </div>
+              </div>
+              <div class="p-4 bg-gray-900 bg-opacity-50">
+                <div class="flex items-center text-sm text-gray-300">
+                  <i class="fas fa-music mr-2"></i>
+                  <span>no_smoking.wav</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-300 mt-2">
+                  <i class="fas fa-folder mr-2"></i>
+                  <span>pose/02</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sample-card group cursor-pointer bg-gray-800 rounded-lg overflow-hidden transition-transform transform hover:scale-105"
+              onclick="loadExample(4)"
+            >
+              <div class="relative h-48">
+                <img
+                  src="/EMTD_dataset/ref_imgs_by_FLUX/woman/0057.png"
+                  alt="Ultraman Scene"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"
+                ></div>
+                <div class="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 class="text-lg font-semibold text-white">
+                    Ultraman Scene
+                  </h3>
+                  <p class="text-sm text-gray-300">Chinese Audio</p>
+                </div>
+              </div>
+              <div class="p-4 bg-gray-900 bg-opacity-50">
+                <div class="flex items-center text-sm text-gray-300">
+                  <i class="fas fa-music mr-2"></i>
+                  <span>ultraman.wav</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-300 mt-2">
+                  <i class="fas fa-folder mr-2"></i>
+                  <span>pose/ultraman</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sample-card group cursor-pointer bg-gray-800 rounded-lg overflow-hidden transition-transform transform hover:scale-105"
+              onclick="loadExample(5)"
+            >
+              <div class="relative h-48">
+                <img
+                  src="/EMTD_dataset/ref_imgs_by_FLUX/man/0001.png"
+                  alt="EchoMimic Man"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"
+                ></div>
+                <div class="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 class="text-lg font-semibold text-white">
+                    EchoMimic Man
+                  </h3>
+                  <p class="text-sm text-gray-300">Chinese Audio</p>
+                </div>
+              </div>
+              <div class="p-4 bg-gray-900 bg-opacity-50">
+                <div class="flex items-center text-sm text-gray-300">
+                  <i class="fas fa-music mr-2"></i>
+                  <span>echomimicv2_man.wav</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-300 mt-2">
+                  <i class="fas fa-folder mr-2"></i>
+                  <span>pose/03</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sample-card group cursor-pointer bg-gray-800 rounded-lg overflow-hidden transition-transform transform hover:scale-105"
+              onclick="loadExample(6)"
+            >
+              <div class="relative h-48">
+                <img
+                  src="/EMTD_dataset/ref_imgs_by_FLUX/woman/0077.png"
+                  alt="EchoMimic Woman"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"
+                ></div>
+                <div class="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 class="text-lg font-semibold text-white">
+                    EchoMimic Woman
+                  </h3>
+                  <p class="text-sm text-gray-300">Chinese Audio</p>
+                </div>
+              </div>
+              <div class="p-4 bg-gray-900 bg-opacity-50">
+                <div class="flex items-center text-sm text-gray-300">
+                  <i class="fas fa-music mr-2"></i>
+                  <span>echomimicv2_woman.wav</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-300 mt-2">
+                  <i class="fas fa-folder mr-2"></i>
+                  <span>pose/04</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Configuration
+      const API_BASE = "http://13.203.96.180:8000";
+      const STATIC_BASE = "http://13.203.96.180:8005";
+
+      // UI State Management
+      const fileUploadBtn = document.getElementById("fileUploadBtn");
+      const urlInputBtn = document.getElementById("urlInputBtn");
+      const fileUploadSection = document.getElementById("fileUploadSection");
+      const urlInputSection = document.getElementById("urlInputSection");
+      const progressSection = document.getElementById("progressSection");
+      const progressBar = document.getElementById("progressBar");
+      const progressStatus = document.getElementById("progressStatus");
+      const videoGallery = document.getElementById("videoGallery");
+
+      // Switch between file upload and URL input
+      fileUploadBtn.addEventListener("click", () => {
+        fileUploadBtn.classList.add("bg-purple-600", "hover:bg-purple-700");
+        fileUploadBtn.classList.remove("bg-gray-700", "hover:bg-gray-600");
+        urlInputBtn.classList.add("bg-gray-700", "hover:bg-gray-600");
+        urlInputBtn.classList.remove("bg-purple-600", "hover:bg-purple-700");
+        fileUploadSection.classList.remove("hidden");
+        urlInputSection.classList.add("hidden");
+      });
+
+      urlInputBtn.addEventListener("click", () => {
+        urlInputBtn.classList.add("bg-purple-600", "hover:bg-purple-700");
+        urlInputBtn.classList.remove("bg-gray-700", "hover:bg-gray-600");
+        fileUploadBtn.classList.add("bg-gray-700", "hover:bg-gray-600");
+        fileUploadBtn.classList.remove("bg-purple-600", "hover:bg-purple-700");
+        urlInputSection.classList.remove("hidden");
+        fileUploadSection.classList.add("hidden");
+      });
+
+      // File name display
+      document.getElementById("imageFile").addEventListener("change", (e) => {
+        document.getElementById("imageFileName").textContent =
+          e.target.files[0]?.name || "";
+      });
+
+      document.getElementById("audioFile").addEventListener("change", (e) => {
+        document.getElementById("audioFileName").textContent =
+          e.target.files[0]?.name || "";
+      });
+
+      // Sample examples data
+      const examples = [
+        {
+          image: `${STATIC_BASE}/EMTD_dataset/ref_imgs_by_FLUX/man/0003.png`,
+          audio: `${STATIC_BASE}/assets/halfbody_demo/audio/chinese/fighting.wav`,
+          pose: "fight",
+        },
+        {
+          image: `${STATIC_BASE}/EMTD_dataset/ref_imgs_by_FLUX/woman/0033.png`,
+          audio: `${STATIC_BASE}/assets/halfbody_demo/audio/chinese/good.wav`,
+          pose: "good",
+        },
+        {
+          image: `${STATIC_BASE}/EMTD_dataset/ref_imgs_by_FLUX/man/0010.png`,
+          audio: `${STATIC_BASE}/assets/halfbody_demo/audio/chinese/news.wav`,
+          pose: "01",
+        },
+        {
+          image: `${STATIC_BASE}/EMTD_dataset/ref_imgs_by_FLUX/man/1168.png`,
+          audio: `${STATIC_BASE}/assets/halfbody_demo/audio/chinese/no_smoking.wav`,
+          pose: "02",
+        },
+        {
+          image: `${STATIC_BASE}/EMTD_dataset/ref_imgs_by_FLUX/woman/0057.png`,
+          audio: `${STATIC_BASE}/assets/halfbody_demo/audio/chinese/ultraman.wav`,
+          pose: "ultraman",
+        },
+        {
+          image: `${STATIC_BASE}/EMTD_dataset/ref_imgs_by_FLUX/man/0001.png`,
+          audio: `${STATIC_BASE}/assets/halfbody_demo/audio/chinese/echomimicv2_man.wav`,
+          pose: "03",
+        },
+        {
+          image: `${STATIC_BASE}/EMTD_dataset/ref_imgs_by_FLUX/woman/0077.png`,
+          audio: `${STATIC_BASE}/assets/halfbody_demo/audio/chinese/echomimicv2_woman.wav`,
+          pose: "04",
+        },
+      ];
+
+      // Update sample card image sources
+      document.querySelectorAll(".sample-card img").forEach((img, index) => {
+        const src = img.getAttribute("src");
+        img.src = `${STATIC_BASE}${src}`;
+      });
+
+      // Form submission
+      document
+        .getElementById("generationForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const formData = new FormData();
+          const isFileUpload = !fileUploadSection.classList.contains("hidden");
+
+          if (isFileUpload) {
+            const imageFile = document.getElementById("imageFile").files[0];
+            const audioFile = document.getElementById("audioFile").files[0];
+
+            if (!imageFile || !audioFile) {
+              alert("Please select both image and audio files");
+              return;
+            }
+
+            formData.append("image_input", imageFile);
+            formData.append("audio_input", audioFile);
+          } else {
+            const imageUrl = document.getElementById("imageUrl").value;
+            const audioUrl = document.getElementById("audioUrl").value;
+
+            if (!imageUrl || !audioUrl) {
+              alert("Please provide both image and audio URLs");
+              return;
+            }
+
+            formData.append("image_url", imageUrl);
+            formData.append("audio_url", audioUrl);
+          }
+
+          // Add common parameters
+          formData.append(
+            "pose_input",
+            document.getElementById("poseInput").value
+          );
+          formData.append("width", document.getElementById("width").value);
+          formData.append("height", document.getElementById("height").value);
+          formData.append("length", document.getElementById("length").value);
+          formData.append("steps", document.getElementById("steps").value);
+
+          try {
+            progressSection.classList.remove("hidden");
+            progressBar.style.width = "0%";
+            progressStatus.textContent = "Starting generation...";
+
+            const response = await fetch(`${API_BASE}/generate`, {
+              method: "POST",
+              body: formData,
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              // Start progress monitoring
+              monitorProgress(data.task_id);
+            } else {
+              throw new Error(data.error || "Generation failed");
+            }
+          } catch (error) {
+            progressStatus.textContent = `Error: ${error.message}`;
+            progressBar.style.width = "0%";
+            progressBar.classList.add("bg-red-600");
+          }
+        });
+
+      // Progress monitoring
+      async function monitorProgress(taskId) {
+        const eventSource = new EventSource(
+          `${API_BASE}/task/${taskId}/stream`
+        );
+
+        eventSource.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+
+          progressBar.style.width = `${data.progress}%`;
+          progressStatus.textContent = `${data.status}: ${data.progress}%`;
+
+          if (data.status === "completed") {
+            eventSource.close();
+            progressStatus.textContent = "Generation completed!";
+            loadGeneratedVideos();
+          } else if (data.status === "failed") {
+            eventSource.close();
+            progressStatus.textContent = `Error: ${data.error}`;
+            progressBar.classList.add("bg-red-600");
+          }
+        };
+
+        eventSource.onerror = () => {
+          eventSource.close();
+          progressStatus.textContent = "Lost connection to server";
+          progressBar.classList.add("bg-red-600");
+        };
+      }
+
+      // Load generated videos
+      async function loadGeneratedVideos() {
+        try {
+          const response = await fetch(`${API_BASE}/outputs`);
+          const data = await response.json();
+
+          videoGallery.innerHTML = data.files
+            .map(
+              (file) => `
+                    <div class="relative group">
+                        <video 
+                            src="${API_BASE}/${file}"
+                            class="w-full h-48 object-cover rounded-lg transition-transform transform group-hover:scale-105"
+                            controls
+                        ></video>
+                        <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                            <a href="${API_BASE}/${file}" download class="text-white hover:text-purple-400 mx-2">
+                                <i class="fas fa-download text-xl"></i>
+                            </a>
+                        </div>
+                    </div>
+                `
+            )
+            .join("");
+        } catch (error) {
+          console.error("Failed to load videos:", error);
+        }
+      }
+
+      // Function to load and generate example
+      async function loadExample(index) {
+        const example = examples[index];
+
+        try {
+          // Show progress section
+          progressSection.classList.remove("hidden");
+          progressBar.style.width = "0%";
+          progressStatus.textContent = "Loading example...";
+
+          // Create form data
+          const formData = new FormData();
+          formData.append("image_url", example.image);
+          formData.append("audio_url", example.audio);
+          formData.append("pose_input", example.pose);
+          formData.append("width", "768");
+          formData.append("height", "768");
+          formData.append("length", "120");
+          formData.append("steps", "30");
+
+          // Send generation request
+          const response = await fetch(`${API_BASE}/generate`, {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            // Start progress monitoring
+            monitorProgress(data.task_id);
+          } else {
+            throw new Error(data.error || "Generation failed");
+          }
+        } catch (error) {
+          progressStatus.textContent = `Error: ${error.message}`;
+          progressBar.style.width = "0%";
+          progressBar.classList.add("bg-red-600");
+        }
+      }
+
+      // Initial load of generated videos
+      loadGeneratedVideos();
+    </script>
+  </body>
+</html>
