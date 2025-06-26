@@ -127,19 +127,30 @@
             <div class="space-y-4">
               <div class="space-y-2">
                 <label class="block text-sm font-medium">Pose Input</label>
-                <select
-                  id="poseInput"
-                  class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-purple-500"
-                >
-                  <option value="assets/halfbody_demo/pose/01">Pose 01</option>
-                  <option value="assets/halfbody_demo/pose/02">Pose 02</option>
-                  <option value="assets/halfbody_demo/pose/03">Pose 03</option>
-                  <option value="assets/halfbody_demo/pose/04">Pose 04</option>
-                  <option value="assets/halfbody_demo/pose/fight">Fight</option>
-                  <option value="assets/halfbody_demo/pose/good">Good</option>
-                  <option value="assets/halfbody_demo/pose/salute">Salute</option>
-                  <option value="assets/halfbody_demo/pose/ultraman">Ultraman</option>
-                </select>
+                <div class="flex space-x-2">
+                  <select
+                    id="poseInput"
+                    class="flex-1 px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="assets/halfbody_demo/pose/01">Pose 01</option>
+                    <option value="assets/halfbody_demo/pose/02">Pose 02</option>
+                    <option value="assets/halfbody_demo/pose/03">Pose 03</option>
+                    <option value="assets/halfbody_demo/pose/04">Pose 04</option>
+                    <option value="assets/halfbody_demo/pose/fight">Fight</option>
+                    <option value="assets/halfbody_demo/pose/good">Good</option>
+                    <option value="assets/halfbody_demo/pose/salute">Salute</option>
+                    <option value="assets/halfbody_demo/pose/ultraman">Ultraman</option>
+                  </select>
+                  <button
+                    type="button"
+                    id="checkPoseBtn"
+                    class="px-3 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white"
+                    title="Check if pose directory exists and list its contents"
+                  >
+                    <i class="fas fa-search"></i>
+                  </button>
+                </div>
+                <div id="poseDebugInfo" class="text-xs text-gray-400 mt-1 hidden"></div>
               </div>
 
               <div class="grid grid-cols-2 gap-4">
@@ -840,6 +851,64 @@
           progressBar.classList.add("bg-red-600");
         }
       }
+
+      // Debug tools
+      document.getElementById("checkPoseBtn").addEventListener("click", async () => {
+        const poseDir = document.getElementById("poseInput").value;
+        const debugInfoEl = document.getElementById("poseDebugInfo");
+        
+        try {
+          debugInfoEl.textContent = "Checking pose directory...";
+          debugInfoEl.classList.remove("hidden", "text-red-500");
+          debugInfoEl.classList.add("text-yellow-400");
+          
+          const response = await fetch(`${API_BASE}/debug/list_directory?directory_path=${encodeURIComponent(poseDir)}`);
+          const data = await response.json();
+          
+          if (response.ok) {
+            debugInfoEl.classList.remove("text-yellow-400", "text-red-500");
+            debugInfoEl.classList.add("text-green-400");
+            
+            // Count .npy files
+            const npyFiles = data.contents.filter(item => item.name.endsWith('.npy'));
+            
+            debugInfoEl.innerHTML = `
+              <div class="bg-gray-900 rounded p-2 mt-2">
+                <div class="font-medium text-green-400">✓ Directory Found</div>
+                <div>Path: ${data.directory}</div>
+                <div>Total items: ${data.total_items}</div>
+                <div>NPY files: ${npyFiles.length}</div>
+                <details>
+                  <summary class="cursor-pointer hover:text-white">Show file list</summary>
+                  <ul class="mt-2 pl-4 list-disc">
+                    ${npyFiles.slice(0, 10).map(item => 
+                      `<li>${item.name} (${item.size} bytes)</li>`).join('')}
+                    ${npyFiles.length > 10 ? `<li>...and ${npyFiles.length - 10} more</li>` : ''}
+                  </ul>
+                </details>
+              </div>
+            `;
+          } else {
+            debugInfoEl.classList.remove("text-yellow-400");
+            debugInfoEl.classList.add("text-red-500");
+            debugInfoEl.innerHTML = `
+              <div class="bg-gray-900 rounded p-2 mt-2">
+                <div class="font-medium text-red-500">❌ Error</div>
+                <div>${data.error || "Unknown error"}</div>
+              </div>
+            `;
+          }
+        } catch (error) {
+          debugInfoEl.classList.remove("text-yellow-400");
+          debugInfoEl.classList.add("text-red-500");
+          debugInfoEl.innerHTML = `
+            <div class="bg-gray-900 rounded p-2 mt-2">
+              <div class="font-medium text-red-500">❌ Error checking directory</div>
+              <div>${error.message}</div>
+            </div>
+          `;
+        }
+      });
 
       // Initial load of generated videos
       loadGeneratedVideos();

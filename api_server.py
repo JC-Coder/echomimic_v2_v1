@@ -6,23 +6,8 @@ import asyncio
 import aiohttp
 import requests
 from datetime import datetime
-from typing import Dict, Optional, List, Unio        video_output, _ = generate(
-            image_path,
-            audio_path,
-            pose_path,  # Use the corrected pose path
-            width,
-            height,
-            length,
-            steps,
-            sample_rate,
-            cfg,
-            fps,
-            context_frames,
-            context_overlap,
-            quantization_input,
-            seed,
-            progress_callback=progress_callback
-        )port FastAPI, File, UploadFile, Form, BackgroundTasks, HTTPException
+from typing import Dict, Optional, List, Union
+from fastapi import FastAPI, File, UploadFile, Form, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -160,7 +145,7 @@ def run_generation(
     try:
         # Create the generated_videos directory if it doesn't exist
         os.makedirs("generated_videos", exist_ok=True)
-        
+
         # Ensure pose_input has the correct path
         # Check if pose_input is one of the predefined pose names
         if pose_input in ["fight", "good", "ultraman", "salute"]:
@@ -170,7 +155,7 @@ def run_generation(
         else:
             # If it's already a path, use it as is
             pose_path = pose_input
-            
+
         # Verify that the pose path exists
         if not os.path.exists(pose_path):
             raise FileNotFoundError(f"Pose path not found: {pose_path}")
@@ -213,6 +198,18 @@ def run_generation(
         cleanup_temp_files([image_path, audio_path])
 
     except Exception as e:
+        import traceback
+
+        error_details = traceback.format_exc()
+
+        # Print error with visual emphasis in terminal
+        print("\n" + "=" * 80)
+        print(f"\033[91m[ERROR] Generation Failed for task {task.task_id}:\033[0m")
+        print(f"\033[93mError message: {str(e)}\033[0m")
+        print(f"\033[97mError details:\n{error_details}\033[0m")
+        print("=" * 80 + "\n")
+
+        # Update task status
         task.fail(str(e))
         tasks_progress[task.task_id] = task.to_dict()
 
@@ -536,5 +533,66 @@ async def startup_event():
     os.makedirs("generated_videos", exist_ok=True)
 
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.get("/debug/list_directory")
+async def list_directory(directory_path: str):
+    """
+    Debug endpoint to list the contents of a directory.
+    This helps in troubleshooting path-related issues.
+    """
+    try:
+        # Check if the directory exists
+        if not os.path.exists(directory_path):
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Directory not found: {directory_path}"},
+            )
+
+        # Check if it's actually a directory
+        if not os.path.isdir(directory_path):
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Path is not a directory: {directory_path}"},
+            )
+
+        # Get directory contents
+        contents = os.listdir(directory_path)
+
+        # Get detailed info for each item
+        items = []
+        for item in contents:
+            item_path = os.path.join(directory_path, item)
+            item_info = {
+                "name": item,
+                "is_dir": os.path.isdir(item_path),
+                "size": (
+                    os.path.getsize(item_path) if os.path.isfile(item_path) else None
+                ),
+                "last_modified": datetime.fromtimestamp(
+                    os.path.getmtime(item_path)
+                ).strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            items.append(item_info)
+
+        return {
+            "directory": directory_path,
+            "contents": items,
+            "total_items": len(items),
+        }
+    except Exception as e:
+        import traceback
+
+        error_traceback = traceback.format_exc()
+
+        # Log error to console
+        print(
+            f"\033[91m[ERROR] Error listing directory {directory_path}: {str(e)}\033[0m"
+        )
+        print(error_traceback)
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": f"Failed to list directory: {str(e)}",
+                "traceback": error_traceback,
+            },
+        )
