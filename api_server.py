@@ -146,12 +146,13 @@ def run_generation(
         # Create the generated_videos directory if it doesn't exist
         os.makedirs("generated_videos", exist_ok=True)
 
-        # Mock progress updates (in a real implementation, this would come from the generate function)
+        # Run the generation
         def progress_callback(progress):
+            # Ensure progress is an integer between 0 and 100
+            progress = max(0, min(int(progress), 100))
             task.update_progress(progress)
             tasks_progress[task.task_id] = task.to_dict()
 
-        # Run the generation
         video_output, _ = generate(
             image_path,
             audio_path,
@@ -167,6 +168,7 @@ def run_generation(
             context_overlap,
             quantization_input,
             seed,
+            progress_callback=progress_callback,
         )
 
         # Move the output to the generated_videos directory
@@ -396,30 +398,60 @@ async def stream_task_progress(task_id: str):
 
     async def event_generator():
         previous_progress = -1
-        while True:
-            if task_id not in tasks_progress:
-                yield f"data: {{'error': 'Task not found'}}\n\n"
-                break
+        heartbeat_counter = 0
 
-            task_info = tasks_progress[task_id]
-            current_progress = task_info.get("progress", 0)
+        try:
+            while True:
+                # Send heartbeat every 15 seconds to keep connection alive
+                heartbeat_counter += 1
+                if heartbeat_counter >= 30:  # 30 x 0.5s = 15s
+                    yield f'data: {{"heartbeat": true}}\n\n'
+                    heartbeat_counter = 0
 
-            # Send update if progress changed or status is completed/failed
-            if current_progress != previous_progress or task_info["status"] in [
-                "completed",
-                "failed",
-            ]:
-
-                yield f"data: {task_info}\n\n"
-                previous_progress = current_progress
-
-                # If task is done, stop streaming
-                if task_info["status"] in ["completed", "failed"]:
+                if task_id not in tasks_progress:
+                    yield f'data: {{"error": "Task not found"}}\n\n'
                     break
 
-            await asyncio.sleep(0.5)
+                task_info = tasks_progress[task_id]
+                current_progress = task_info.get("progress", 0)
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+                # Send update if progress changed or status is completed/failed
+                if current_progress != previous_progress or task_info["status"] in [
+                    "completed",
+                    "failed",
+                ]:
+                    # Convert task_info to a properly formatted JSON string
+                    import json
+
+                    task_info_json = json.dumps(task_info)
+                    yield f"data: {task_info_json}\n\n"
+                    previous_progress = current_progress
+
+                    # If task is done, stop streaming
+                    if task_info["status"] in ["completed", "failed"]:
+                        break
+
+                # Use a shorter sleep interval to be more responsive
+                await asyncio.sleep(0.5)
+
+        except asyncio.CancelledError:
+            # Handle client disconnection gracefully
+            print(f"Client disconnected from stream for task {task_id}")
+            return
+        except Exception as e:
+            print(f"Error in event stream for task {task_id}: {str(e)}")
+            yield f'data: {{"error": "{str(e)}"}}\n\n'
+            return
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Prevents proxy buffering which can cause timeout issues
+        },
+    )
 
 
 @app.get("/outputs")

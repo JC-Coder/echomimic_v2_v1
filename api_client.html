@@ -664,32 +664,111 @@
 
       // Progress monitoring
       async function monitorProgress(taskId) {
-        const eventSource = new EventSource(
-          `${API_BASE}/task/${taskId}/stream`
-        );
-
-        eventSource.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-
-          progressBar.style.width = `${data.progress}%`;
-          progressStatus.textContent = `${data.status}: ${data.progress}%`;
-
-          if (data.status === "completed") {
+        let retryCount = 0;
+        const maxRetries = 3;
+        let eventSource;
+        
+        function setupEventSource() {
+          // Close any existing connection
+          if (eventSource) {
             eventSource.close();
-            progressStatus.textContent = "Generation completed!";
-            loadGeneratedVideos();
-          } else if (data.status === "failed") {
+          }
+          
+          eventSource = new EventSource(`${API_BASE}/task/${taskId}/stream`);
+
+          eventSource.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              
+              // Handle heartbeat messages
+              if (data.heartbeat) {
+                console.log("Received heartbeat from server");
+                return;
+              }
+              
+              // Reset retry count on successful message
+              retryCount = 0;
+              
+              progressBar.style.width = `${data.progress}%`;
+              progressStatus.textContent = `${data.status}: ${data.progress}%`;
+
+              if (data.status === "completed") {
+                eventSource.close();
+                progressStatus.textContent = "Generation completed!";
+                loadGeneratedVideos();
+              } else if (data.status === "failed") {
+                eventSource.close();
+                progressStatus.textContent = `Error: ${data.error}`;
+                progressBar.classList.add("bg-red-600");
+              }
+            } catch (error) {
+              console.error("Error parsing event data:", error, event.data);
+            }
+          };
+
+          eventSource.onerror = (error) => {
+            console.error("EventSource error:", error);
             eventSource.close();
-            progressStatus.textContent = `Error: ${data.error}`;
+            
+            if (retryCount < maxRetries) {
+              retryCount++;
+              progressStatus.textContent = `Connection lost. Retrying (${retryCount}/${maxRetries})...`;
+              
+              // Exponential backoff for retries
+              setTimeout(() => {
+                setupEventSource();
+              }, 1000 * Math.pow(2, retryCount));
+            } else {
+              progressStatus.textContent = "Lost connection to server. Please check task status manually.";
+              progressBar.classList.add("bg-red-600");
+              
+              // Fall back to polling the task status
+              pollTaskStatus(taskId);
+            }
+          };
+        }
+        
+        // Set up initial EventSource connection
+        setupEventSource();
+      }
+      
+      // Fallback polling mechanism if SSE fails
+      async function pollTaskStatus(taskId) {
+        const pollInterval = 2000; // 2 seconds
+        const checkStatus = async () => {
+          try {
+            const response = await fetch(`${API_BASE}/task/${taskId}`);
+            if (response.ok) {
+              const data = await response.json();
+              
+              progressBar.style.width = `${data.progress}%`;
+              progressStatus.textContent = `${data.status}: ${data.progress}% (polling)`;
+              
+              if (data.status === "completed") {
+                progressStatus.textContent = "Generation completed!";
+                loadGeneratedVideos();
+                return; // Stop polling
+              } else if (data.status === "failed") {
+                progressStatus.textContent = `Error: ${data.error}`;
+                progressBar.classList.add("bg-red-600");
+                return; // Stop polling
+              }
+              
+              // Continue polling
+              setTimeout(checkStatus, pollInterval);
+            } else {
+              progressStatus.textContent = "Failed to fetch task status";
+              progressBar.classList.add("bg-red-600");
+            }
+          } catch (error) {
+            console.error("Error polling task status:", error);
+            progressStatus.textContent = "Error checking task status";
             progressBar.classList.add("bg-red-600");
           }
         };
-
-        eventSource.onerror = () => {
-          eventSource.close();
-          progressStatus.textContent = "Lost connection to server";
-          progressBar.classList.add("bg-red-600");
-        };
+        
+        // Start polling
+        checkStatus();
       }
 
       // Load generated videos

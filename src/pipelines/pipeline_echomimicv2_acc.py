@@ -24,7 +24,11 @@ from tqdm import tqdm
 from src.models.mutual_self_attention import ReferenceAttentionControl
 from src.pipelines.context import get_context_scheduler
 from src.pipelines.utils import get_tensor_interpolation_method
-from src.pipelines.step_func import origin_by_velocity_and_sample, psuedo_velocity_wrt_noisy_and_timestep
+from src.pipelines.step_func import (
+    origin_by_velocity_and_sample,
+    psuedo_velocity_wrt_noisy_and_timestep,
+)
+
 
 @dataclass
 class EchoMimicV2PipelineOutput(BaseOutput):
@@ -183,7 +187,7 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
         dtype,
         device,
         generator,
-        context_frame_length
+        context_frame_length,
     ):
         shape = (
             batch_size,
@@ -204,7 +208,7 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
             shape, generator=generator, device=device, dtype=dtype
         )
         latents = latents_seg
-        
+
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * self.scheduler.init_noise_sigma
         print(f"latents shape:{latents.shape}, video_length:{video_length}")
@@ -220,7 +224,7 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
         dtype,
         device,
         generator,
-        context_frame_length
+        context_frame_length,
     ):
         shape = (
             batch_size,
@@ -242,16 +246,14 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
         )
 
         latents = latents_seg
-        
-        latents = torch.clamp(latents_seg, -1.5, 1.5)
 
+        latents = torch.clamp(latents_seg, -1.5, 1.5)
 
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * self.scheduler.init_noise_sigma
         print(f"latents shape:{latents.shape}, video_length:{video_length}")
-        
-        return latents
 
+        return latents
 
     def interpolate_latents(
         self, latents: torch.Tensor, interpolation_factor: int, device
@@ -326,6 +328,7 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
         fps=25,
         audio_margin=2,
         start_idx=0,
+        progress_callback=None,
         **kwargs,
     ):
         # Default height and width to unet
@@ -358,13 +361,17 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
         )
 
         whisper_feature = self.audio_guider.audio2feat(audio_path)
-        whisper_chunks = self.audio_guider.feature2chunks(feature_array=whisper_feature, fps=fps)
+        whisper_chunks = self.audio_guider.feature2chunks(
+            feature_array=whisper_feature, fps=fps
+        )
         audio_frame_num = whisper_chunks.shape[0]
-        audio_fea_final = torch.Tensor(whisper_chunks).to(dtype=self.vae.dtype, device=self.vae.device)
+        audio_fea_final = torch.Tensor(whisper_chunks).to(
+            dtype=self.vae.dtype, device=self.vae.device
+        )
         audio_fea_final = audio_fea_final.unsqueeze(0)
-        
+
         video_length = min(video_length, audio_frame_num)
-        
+
         num_channels_latents = self.denoising_unet.in_channels
         latents = self.prepare_latents_smooth(
             batch_size * num_images_per_prompt,
@@ -375,11 +382,11 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
             audio_fea_final.dtype,
             device,
             generator,
-            context_frames
+            context_frames,
         )
-        
+
         pose_enocder_tensor = self.pose_encoder(poses_tensor)
-        
+
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
         # Prepare ref image latents
@@ -406,7 +413,11 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
                 context_overlap,
             )
         )
-     
+
+        # Report initial progress if callback is provided
+        if progress_callback is not None:
+            progress_callback(15)  # Initial setup is complete
+
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for t_i, t in enumerate(timesteps):
                 noise_pred = torch.zeros(
@@ -431,8 +442,10 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
                         encoder_hidden_states=None,
                         return_dict=False,
                     )
-                    reference_control_reader.update(reference_control_writer, do_classifier_free_guidance=do_classifier_free_guidance)
-
+                    reference_control_reader.update(
+                        reference_control_writer,
+                        do_classifier_free_guidance=do_classifier_free_guidance,
+                    )
 
                 num_context_batches = math.ceil(len(context_queue) / context_batch_size)
 
@@ -446,11 +459,15 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
 
                 ## refine
                 for context in global_context:
-                    new_context = [[0 for _ in range(len(context[c_j]))] for c_j in range(len(context))]
+                    new_context = [
+                        [0 for _ in range(len(context[c_j]))]
+                        for c_j in range(len(context))
+                    ]
                     for c_j in range(len(context)):
                         for c_i in range(len(context[c_j])):
-                            new_context[c_j][c_i] = (context[c_j][c_i] + t_i * 3) % video_length
-        
+                            new_context[c_j][c_i] = (
+                                context[c_j][c_i] + t_i * 3
+                            ) % video_length
 
                     latent_model_input = (
                         torch.cat([latents[:, :, c] for c in new_context])
@@ -458,29 +475,55 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
                         .repeat(2 if do_classifier_free_guidance else 1, 1, 1, 1, 1)
                     )
 
-                    audio_latents_cond = torch.cat([audio_fea_final[:, c] for c in new_context]).to(device)
-                                        
-                    audio_latents = torch.cat([torch.zeros_like(audio_latents_cond), audio_latents_cond], 0)
-                    pose_latents_cond = torch.cat([pose_enocder_tensor[:, :, c] for c in new_context]).to(device)
-                    pose_latents = torch.cat([torch.zeros_like(pose_latents_cond), pose_latents_cond], 0)
-                    
+                    audio_latents_cond = torch.cat(
+                        [audio_fea_final[:, c] for c in new_context]
+                    ).to(device)
+
+                    audio_latents = torch.cat(
+                        [torch.zeros_like(audio_latents_cond), audio_latents_cond], 0
+                    )
+                    pose_latents_cond = torch.cat(
+                        [pose_enocder_tensor[:, :, c] for c in new_context]
+                    ).to(device)
+                    pose_latents = torch.cat(
+                        [torch.zeros_like(pose_latents_cond), pose_latents_cond], 0
+                    )
+
                     latent_model_input = self.scheduler.scale_model_input(
                         latent_model_input, t
                     )
                     b, c, f, h, w = latent_model_input.shape
-                    
+
                     pred = self.denoising_unet(
                         latent_model_input,
                         t,
                         encoder_hidden_states=None,
-                        audio_cond_fea=audio_latents if do_classifier_free_guidance else audio_latents_cond,
-                        face_musk_fea=pose_latents if do_classifier_free_guidance else pose_latents_cond,
+                        audio_cond_fea=(
+                            audio_latents
+                            if do_classifier_free_guidance
+                            else audio_latents_cond
+                        ),
+                        face_musk_fea=(
+                            pose_latents
+                            if do_classifier_free_guidance
+                            else pose_latents_cond
+                        ),
                         return_dict=False,
                     )[0]
 
-                    alphas_cumprod = self.scheduler.alphas_cumprod.to(latent_model_input.device)
-                    x_pred = origin_by_velocity_and_sample(pred, latent_model_input, alphas_cumprod, t)
-                    pred = psuedo_velocity_wrt_noisy_and_timestep(latent_model_input, x_pred, alphas_cumprod, t, torch.ones_like(t) * (-1))
+                    alphas_cumprod = self.scheduler.alphas_cumprod.to(
+                        latent_model_input.device
+                    )
+                    x_pred = origin_by_velocity_and_sample(
+                        pred, latent_model_input, alphas_cumprod, t
+                    )
+                    pred = psuedo_velocity_wrt_noisy_and_timestep(
+                        latent_model_input,
+                        x_pred,
+                        alphas_cumprod,
+                        t,
+                        torch.ones_like(t) * (-1),
+                    )
 
                     for j, c in enumerate(new_context):
                         noise_pred[:, :, c] = noise_pred[:, :, c] + pred
@@ -498,22 +541,40 @@ class EchoMimicV2Pipeline(DiffusionPipeline):
                     noise_pred, t, latents, **extra_step_kwargs
                 ).prev_sample
 
+                # Update progress via callback if provided
+                if progress_callback is not None and (
+                    t_i % max(1, len(timesteps) // 10) == 0
+                ):
+                    # Calculate progress from 15% to 75% based on denoising steps
+                    progress_percent = int(15 + (t_i / len(timesteps)) * 60)
+                    progress_callback(progress_percent)
+
                 if t_i == len(timesteps) - 1 or (
-                    (t_i + 1) > num_warmup_steps and (t_i + 1) % self.scheduler.order == 0
+                    (t_i + 1) > num_warmup_steps
+                    and (t_i + 1) % self.scheduler.order == 0
                 ):
                     progress_bar.update()
 
             reference_control_reader.clear()
             reference_control_writer.clear()
 
+        if progress_callback is not None:
+            progress_callback(75)  # Denoising complete
+
         if interpolation_factor > 0:
             latents = self.interpolate_latents(latents, interpolation_factor, device)
         # Post-processing
         images = self.decode_latents(latents)  # (b, c, f, h, w)
 
+        if progress_callback is not None:
+            progress_callback(79)  # Decoding complete
+
         # Convert to tensor
         if output_type == "tensor":
             images = torch.from_numpy(images)
+
+        if progress_callback is not None:
+            progress_callback(80)  # Processing complete
 
         if not return_dict:
             return images

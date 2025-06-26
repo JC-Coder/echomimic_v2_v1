@@ -54,6 +54,7 @@ def generate(
     context_overlap=3,
     quantization_input=False,
     seed=-1,
+    progress_callback=None,
 ):
     """
     Generate a video based on the input parameters.
@@ -73,6 +74,7 @@ def generate(
         context_overlap (int): Context frame overlap
         quantization_input (bool): Whether to use INT8 quantization
         seed (int): Random seed (-1 for random)
+        progress_callback (callable): Optional callback function to report progress
 
     Returns:
         tuple: (video_output_path, seed)
@@ -209,6 +211,9 @@ def generate(
     audio_clip = audio_clip.set_duration(length / fps)
 
     # Generate video
+    if progress_callback:
+        progress_callback(10)  # Loading models and preparing data completed
+
     video = pipe(
         ref_image_pil,
         audio_input,
@@ -224,7 +229,11 @@ def generate(
         fps=fps,
         context_overlap=context_overlap,
         start_idx=start_idx,
+        progress_callback=progress_callback,
     ).videos
+
+    if progress_callback:
+        progress_callback(80)  # Video generation completed
 
     final_length = min(video.shape[2], poses_tensor.shape[2], length)
     video_sig = video[:, :, :final_length, :, :]
@@ -237,12 +246,18 @@ def generate(
         fps=fps,
     )
 
+    if progress_callback:
+        progress_callback(90)  # Video without audio saved
+
     # Add audio to video
     video_clip_sig = VideoFileClip(save_name + "_woa_sig.mp4")
     video_clip_sig = video_clip_sig.set_audio(audio_clip)
     video_clip_sig.write_videofile(
         save_name + "_sig.mp4", codec="libx264", audio_codec="aac", threads=2
     )
+
+    if progress_callback:
+        progress_callback(100)  # Final video with audio saved
 
     video_output = save_name + "_sig.mp4"
     return video_output, seed
