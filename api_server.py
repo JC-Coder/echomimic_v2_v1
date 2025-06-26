@@ -525,9 +525,9 @@ async def get_video(video_id: str):
     )
 
 
-
 # Use FastAPI lifespan event handler for startup tasks
 from contextlib import asynccontextmanager
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -536,6 +536,7 @@ async def lifespan(app):
     os.makedirs("temp", exist_ok=True)
     os.makedirs("generated_videos", exist_ok=True)
     yield
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -603,3 +604,20 @@ async def list_directory(directory_path: str):
                 "traceback": error_traceback,
             },
         )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    try:
+        print("\033[94m[INFO] Starting FastAPI server...\033[0m")
+        uvicorn.run("api_server:app", host="0.0.0.0", port=8000, reload=True)
+    except Exception as e:
+        import traceback
+
+        print("\n" + "=" * 80)
+        print(f"\033[91m[ERROR] Failed to start FastAPI server!\033[0m")
+        print(f"\033[93mError message: {str(e)}\033[0m")
+        print(f"\033[97mError details:\n{traceback.format_exc()}\033[0m")
+        print("=" * 80 + "\n")
+        raise
